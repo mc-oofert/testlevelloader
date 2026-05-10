@@ -153,7 +153,10 @@ public class Plugin : BaseUnityPlugin
         {
             if (levelPrefabsList.Any((level) => level.Key.name == gameObject.name)) continue;
             levelPrefabsList.Add(gameObject, bundle.name);
-            CL_AssetManager.GetBaseAssetDatabase().levelPrefabs.Add(gameObject);
+            CL_AssetManager.GetBaseAssetDatabase().levelAssets.Add(new()
+            {
+                level = gameObject.GetComponent<M_Level>()
+            });
         }
     }
 
@@ -168,7 +171,10 @@ public class Plugin : BaseUnityPlugin
         }
         foreach(var thing in toRemove)
         {
-            CL_AssetManager.GetBaseAssetDatabase().levelPrefabs.Remove(thing);
+            CL_AssetManager.GetBaseAssetDatabase().levelAssets.Remove(new()
+            {
+                level = thing.GetComponent<M_Level>()
+            });
             levelPrefabsList.Remove(thing);
         }
         bundle.Unload(false);
