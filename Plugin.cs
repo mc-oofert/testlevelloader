@@ -15,8 +15,10 @@ using UnityEngine.Assertions;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using static M_Level;
 using static System.Net.Mime.MediaTypeNames;
 using static UnityEngine.UIElements.StylePropertyAnimationSystem;
+using static WorldLoader;
 
 namespace TestLevelLoader;
 
@@ -92,6 +94,7 @@ public class Plugin : BaseUnityPlugin
                     var level = levelPair.Key;
                     if (GUILayout.Button(level.name))
                         CL_GameManager.gMan.LoadLevels([level.name]);
+                    //LoadLevelG(level.name);
                 }
             }
         }
@@ -104,8 +107,48 @@ public class Plugin : BaseUnityPlugin
             FXManager.handholdMaterialDict = null;
             if (SceneManager.GetActiveScene().name != "Game-Main") return;
             CL_GameManager.gMan.LoadLevels([curname]);
+            //LoadLevelG(curname);
         }
     }
+    //public static string NextLevel;
+    /*public static void LoadLevelG(string name)
+    {
+        CL_Leaderboard.WK_Leaderboard_Core.disableLeaderboards = true;
+        Debug.LogWarning("Disabled leaderboards due to level loader use");
+        SceneManager.sceneLoaded += AfterLevelLoaded;
+        NextLevel = name;
+        CL_GameManager.gamemodeArgs = [];
+        M_Gamemode gamemodeAsset = CL_AssetManager.GetGamemodeAsset("GM_Level_Tester");
+        CL_GameManager.gMan.SetGamemode(gamemodeAsset);
+        CL_GameManager.gMan.baseGamemode = gamemodeAsset;
+        SceneManager.LoadScene("Game-Main");
+    }
+    public static void AfterLevelLoaded(Scene scene, LoadSceneMode mode)
+    {
+        SceneManager.sceneLoaded -= AfterLevelLoaded;
+        if (scene.name != "Game-Main") return;
+        CL_GameManager.gMan.uiMan.ascentHeader.ShowText("<color=red>Disabled leaderboards due to level loader use.<br> This will persist until the game is restarted</color>"); // doesnt show up
+        Transform[] allChildren = WorldLoader.instance.GetComponentsInChildren<Transform>(true);
+        foreach(Transform child in allChildren)
+        {
+            child.gameObject.SetActive(false);
+        }
+        GameObject obj = GameObject.Instantiate(levelPrefabsList.First((e) => e.Key.name == NextLevel).Key);
+        WorldLoader.instance.GetHandholdManager().LoadHandholds(obj);
+        ENT_Player.playerObject.Teleport(obj.GetComponent<M_Level>().GetSpawnPosition());
+        WorldLoader.instance.StartCoroutine(MassFuckOff());
+    }
+    public static IEnumerator MassFuckOff()
+    {
+        while (DEN_DeathFloor.instance == null || DEN_DeathFloor.instance.active)
+        {
+            if (DEN_DeathFloor.instance != null)
+            {
+                DEN_DeathFloor.instance.DeathGooGoAway([]);
+                yield break;
+            }
+        }
+    }*/
 
     public static void LoadAllBundles()
     {
@@ -153,10 +196,8 @@ public class Plugin : BaseUnityPlugin
         {
             if (levelPrefabsList.Any((level) => level.Key.name == gameObject.name)) continue;
             levelPrefabsList.Add(gameObject, bundle.name);
-            CL_AssetManager.GetBaseAssetDatabase().levelAssets.Add(new()
-            {
-                level = gameObject.GetComponent<M_Level>()
-            });
+            var holder = M_Level.LevelAssetHolder.GetNewHolderFromLevel(gameObject.GetComponent<M_Level>());
+            CL_AssetManager.GetBaseAssetDatabase().levelAssets.Add(holder);
         }
     }
 
@@ -171,10 +212,7 @@ public class Plugin : BaseUnityPlugin
         }
         foreach(var thing in toRemove)
         {
-            CL_AssetManager.GetBaseAssetDatabase().levelAssets.Remove(new()
-            {
-                level = thing.GetComponent<M_Level>()
-            });
+            CL_AssetManager.GetBaseAssetDatabase().levelAssets.Remove(M_Level.LevelAssetHolder.GetNewHolderFromLevel(thing.GetComponent<M_Level>()));
             levelPrefabsList.Remove(thing);
         }
         bundle.Unload(false);
@@ -200,4 +238,54 @@ class Patches
         if (Plugin.loadedBundles.Count > 0) return;
         Plugin.LoadAllBundles();
     }
+    [HarmonyPatch(typeof(CL_AssetManager), nameof(CL_AssetManager.UnloadAllLevels))]
+    [HarmonyPrefix]
+    [HarmonyWrapSafe]
+    static bool Patch2()
+    {
+        return false;
+    }
 }
+/*
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] newobj void System.Collections.Generic.Dictionary<string, UnityEngine.GameObject>::.ctor()
+[Info   : Unity Log] stfld System.Collections.Generic.Dictionary<string, UnityEngine.GameObject> CL_AssetManager+WKDatabaseHolder::assetDictionary
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] newobj void System.Collections.Generic.Dictionary<string, UnityEngine.AddressableAssets.AssetReferenceGameObject>::.ctor()
+[Info   : Unity Log] stfld System.Collections.Generic.Dictionary<string, UnityEngine.AddressableAssets.AssetReferenceGameObject> CL_AssetManager+WKDatabaseHolder::addressibleAssetDictionary
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] ldfld WKAssetDatabase CL_AssetManager+WKDatabaseHolder::database
+[Info   : Unity Log] ldfld System.Collections.Generic.List<UnityEngine.GameObject> WKAssetDatabase::itemPrefabs
+[Info   : Unity Log] call void CL_AssetManager+WKDatabaseHolder::<RefreshDictionary>g__FillObjectDictionaryFromList|4_0(System.Collections.Generic.List<UnityEngine.GameObject> objectList)
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] ldfld WKAssetDatabase CL_AssetManager+WKDatabaseHolder::database
+[Info   : Unity Log] ldfld System.Collections.Generic.List<UnityEngine.GameObject> WKAssetDatabase::entityPrefabs
+[Info   : Unity Log] call void CL_AssetManager+WKDatabaseHolder::<RefreshDictionary>g__FillObjectDictionaryFromList|4_0(System.Collections.Generic.List<UnityEngine.GameObject> objectList)
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] ldfld WKAssetDatabase CL_AssetManager+WKDatabaseHolder::database
+[Info   : Unity Log] ldfld System.Collections.Generic.List<M_Level+LevelAssetHolder> WKAssetDatabase::levelAssets
+[Info   : Unity Log] callvirt System.Collections.Generic.List<M_Level+LevelAssetHolder>+Enumerator System.Collections.Generic.List<M_Level+LevelAssetHolder>::GetEnumerator()
+[Info   : Unity Log] stloc.0 NULL
+[Info   : Unity Log] br Label1 [EX_BeginException]
+[Info   : Unity Log] ldloca.s 0 (System.Collections.Generic.List`1+Enumerator[M_Level+LevelAssetHolder]) [Label2]
+[Info   : Unity Log] call virtual M_Level+LevelAssetHolder System.Collections.Generic.List<M_Level+LevelAssetHolder>+Enumerator::get_Current()
+[Info   : Unity Log] stloc.1 NULL
+[Info   : Unity Log] ldarg.0 NULL
+[Info   : Unity Log] ldfld System.Collections.Generic.Dictionary<string, UnityEngine.AddressableAssets.AssetReferenceGameObject> CL_AssetManager+WKDatabaseHolder::addressibleAssetDictionary
+[Info   : Unity Log] ldloc.1 NULL
+[Info   : Unity Log] ldfld string M_Level+LevelAssetHolder::id
+[Info   : Unity Log] ldloc.1 NULL
+[Info   : Unity Log] ldfld UnityEngine.AddressableAssets.AssetReferenceGameObject M_Level+LevelAssetHolder::levelAssetReference
+[Info   : Unity Log] callvirt virtual void System.Collections.Generic.Dictionary<string, UnityEngine.AddressableAssets.AssetReferenceGameObject>::Add(string key, UnityEngine.AddressableAssets.AssetReferenceGameObject value)
+[Info   : Unity Log] ldloca.s 0 (System.Collections.Generic.List`1+Enumerator[M_Level+LevelAssetHolder]) [Label1]
+[Info   : Unity Log] call virtual bool System.Collections.Generic.List<M_Level+LevelAssetHolder>+Enumerator::MoveNext()
+[Info   : Unity Log] brtrue Label2
+[Info   : Unity Log] leave Label3
+[Info   : Unity Log] ldloca.s 0 (System.Collections.Generic.List`1+Enumerator[M_Level+LevelAssetHolder]) [EX_BeginFinally]
+[Info   : Unity Log] constrained. System.Collections.Generic.List`1+Enumerator[M_Level+LevelAssetHolder]
+[Info   : Unity Log] callvirt abstract virtual void IDisposable::Dispose()
+[Info   : Unity Log] endfinally NULL [EX_EndException]
+[Info   : Unity Log] ret NULL [Label3] 
+*/
